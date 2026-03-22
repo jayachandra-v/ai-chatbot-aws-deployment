@@ -149,13 +149,6 @@ docker restart chatbot
 
 ---
 
-## 📌 Notes
-
-* Ensure EC2 Security Group allows port **8000**
-* Runner must be active on EC2
-* OpenAI API key is required
-
----
 
 ## 🙌 Author
 
