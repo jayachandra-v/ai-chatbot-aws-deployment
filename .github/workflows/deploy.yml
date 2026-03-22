@@ -1,4 +1,4 @@
-name: Deploy FastAPI to EC2 (ECR)
+name: Build & Push to ECR
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   IMAGE_TAG: latest
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
@@ -38,7 +38,7 @@ jobs:
       - name: Build Image
         run: docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
 
-      # 5. Tag Docker image
+      # 5. Tag image
       - name: Tag Image
         run: |
           docker tag $ECR_REPOSITORY:$IMAGE_TAG \
@@ -48,30 +48,3 @@ jobs:
       - name: Push Image
         run: |
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-
-      # 7. Deploy to EC2 via SSH
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            # Stop & remove old container
-            docker stop chatbot || true
-            docker rm -f chatbot || true
-
-            # Login to ECR (EC2 must have IAM role)
-            aws ecr get-login-password --region $AWS_REGION \
-            | docker login --username AWS \
-            --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
-
-            # Pull latest image
-            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-
-            # Run new container
-            docker run -d -p 8000:8000 \
-              --name chatbot \
-              --restart always \
-              -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
-              ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
